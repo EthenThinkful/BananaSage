@@ -4,7 +4,7 @@ import numpy as np
 from collections import defaultdict
 
 # Data loading
-data_path = "data/toy_chat_fine_tuning.jsonl"
+data_path = "data/banana_sage_training_data.jsonl"
 
 # Load the dataset
 with open(data_path, 'r', encoding='utf-8') as f:

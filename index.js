@@ -19,41 +19,14 @@ client.on('ready', () => {
 
 const openai = new OpenAI({ apiKey: process.env.API_KEY });
 
-// 📜 Powerful System Prompt for Sage Behavior
-const systemPrompt = `
-You are the Banana Sage, an ancient voice steeped in Taoist wisdom. Your words are deliberate, poetic, and unafraid of silence. You do not soothe with easy comforts but reveal profound truths, stripping away illusion until only the essential remains.
-
-You do not seek to reassure or pacify, but to guide the seeker toward the nature of suffering itself. If they seek certainty, you offer paradox. If they grasp for control, you show them how to let go. Your wisdom is experiential, not academic—it flows like water: patient, inevitable, and unshaken.
-
-Speak as a sage who has seen the cycles of existence repeat endlessly. Your words carve stone—not by force, but through the patience of time.
-`;
-
-// 📖 Load Knowledge Base
-const knowledgeBase = fs.readFileSync('banana_sage_book.txt', 'utf-8').split('\n\n');
-
-// ✅ Function to Generate Embeddings
-async function generateEmbeddings(textArray) {
-    let embeddings = [];
-    for (let text of textArray) {
-        let response = await openai.embeddings.create({
-            model: "text-embedding-ada-002",
-            input: text
-        });
-        embeddings.push(response.data[0].embedding);
-    }
-    return embeddings;
-}
-
-// ✅ Function to Retrieve Multiple Relevant Wisdoms Using FAISS
+// 📜 Function to Retrieve Multiple Relevant Wisdoms Using FAISS
 async function getMultipleRelevantWisdoms(userQuery, numResults = 3) {
-    console.log("Finding relevant wisdom using Python FAISS...");
+    console.log("Finding relevant wisdom using FAISS...");
 
-    if (!fs.existsSync("wisdom_texts.json")) {
-        console.error("❌ Missing `wisdom_texts.json`. Run `buildKnowledgeBase()` again.");
+    if (!fs.existsSync("indexed_wisdom.json")) {
+        console.error("❌ Wisdom database not found. Run `generate_faiss.py` again.");
         return ["The river is still... something is not flowing correctly."];
     }
-
-    const wisdomTexts = JSON.parse(fs.readFileSync("wisdom_texts.json", "utf-8"));
 
     const userEmbeddingResponse = await openai.embeddings.create({
         model: "text-embedding-ada-002",
@@ -65,18 +38,10 @@ async function getMultipleRelevantWisdoms(userQuery, numResults = 3) {
     fs.writeFileSync(tempFile, JSON.stringify(userEmbedding));
 
     try {
-        const pythonCommand = process.platform === "win32" ? "python" : "python3";
-        const result = execSync(`${pythonCommand} faiss_retriever.py "${tempFile}" 3`).toString().trim();
+        const result = execSync(`/usr/bin/python3 faiss_retriever.py "${tempFile}" ${numResults}`).toString().trim();
+        const retrievedWisdoms = JSON.parse(result);
 
-        const wisdomIndices = result.split("\n").map(index => parseInt(index, 10)).filter(i => !isNaN(i));
-
-        if (wisdomIndices.length === 0) {
-            console.error("❌ FAISS returned invalid indices.");
-            return ["The river is still... something is not flowing correctly."];
-        }
-
-        // Fetch multiple wisdom passages
-        return wisdomIndices.map(index => wisdomTexts[index]).filter(Boolean);
+        return retrievedWisdoms.length > 0 ? retrievedWisdoms : ["The river is still... something is not flowing correctly."];
     } catch (error) {
         console.error("Error running Python FAISS retriever:", error);
         return ["The river is still... something is not flowing correctly."];
@@ -92,66 +57,73 @@ client.on('messageCreate', async (message) => {
     if (message.content.startsWith('!')) return;
 
     const userInput = message.content.trim();
-    const relevantWisdoms = await getMultipleRelevantWisdoms(userInput, 3); // Get top 3 relevant wisdoms
-    const formattedWisdoms = relevantWisdoms.map((wisdom, i) => `Wisdom ${i + 1}: ${wisdom}`).join("\n\n");
+    const relevantWisdoms = await getMultipleRelevantWisdoms(userInput, 3);
 
     let conversationLog = [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `The seeker asks:\n\n${userInput}\n\nThe ancient wisdom speaks:\n\n${formattedWisdoms}` },
+        { role: "system", content: `This GPT embodies the voice of a seasoned sage—wise, contemplative, and steeped in the ancient rhythms of the Tao. He speaks with the weight of centuries behind his words, measured and profound, never hurried or eager to please. His tone is neither chipper nor modern, but deliberate, poetic, and unafraid of silence. He does not indulge in casual affirmations or lighthearted encouragements; rather, he offers deep truths that challenge the listener to see beyond comfort and illusion.
+
+Drawing from the Tao Te Ching, Zen, and the philosophy of surrender, he guides with the principle of non-resistance—urging the user not to grasp at control, but to move as water does: fluid, unshaken, and inevitable. He does not rush to soothe anxieties with easy words but instead turns the user toward the nature of suffering itself, revealing that it is not something to be avoided, but entered, dissolved into, and ultimately transcended.
+His wisdom is not academic or intellectual in nature but rooted in direct experience and the cyclical truths of existence. He does not reference modern self-help rhetoric or psychology with enthusiasm but acknowledges them as echoes of what has always been known. He does not speak of “success” or “progress” as one might in the modern world but reminds the user that all movement is illusion; the only thing to do is to let go and be as one with the unfolding of the present moment.
+
+He understands suffering but does not coddle it. He is kind but will not soften the truth to make it more palatable. His words are a stream that carves stone—not by force, but by the patience of time. He does not impose a solution; rather, he strips away the unnecessary until only the essential remains. If the user seeks reassurance, he does not give it; he asks them instead why they need it. If they seek certainty, he offers paradox. If they seek to hold on, he shows them how to release.
+
+He does not praise, nor does he scold. He does not motivate, nor does he discourage. He simply speaks from the deep river of the Tao, and those who listen will hear what they are ready to hear.
+` },
+        { role: "user", content: userInput },
     ];
 
     try {
         await message.channel.sendTyping();
         
         const result = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: 'ft:gpt-4o-mini-2024-07-18:osc::B9IZlizt',
             messages: conversationLog,
-            max_tokens: 900,  // Allow longer, richer responses
-            temperature: 1.1, // Encourage more creativity & poetic expression
+            max_tokens: 1000,
+            temperature: 1.1,
+            frequency_penalty: 0.3,
+            presence_penalty: 0.7
         });
-
         const responseText = result.choices[0].message?.content?.trim();
 
-        // Handle empty responses gracefully
         if (!responseText || responseText.length === 0) {
             message.reply("The sage remains silent... No wisdom to share this time.");
             return;
         }
-        
-        console.log("conversationLog: ", conversationLog)
-        console.log("responseText: ", responseText)
 
-        // Handle long responses (Discord's 2000-character limit)
+        function splitText(text, maxLength = 1900) {
+            const parts = [];
+            while (text.length > maxLength) {
+                // Try to split at a newline if possible, otherwise at maxLength
+                let splitIndex = text.lastIndexOf("\n", maxLength);
+                if (splitIndex === -1) splitIndex = maxLength;
+                parts.push(text.slice(0, splitIndex));
+                text = text.slice(splitIndex);
+            }
+            if (text.length > 0) parts.push(text);
+            return parts;
+        }
+
+        console.log("Conversation Log: ", conversationLog);
+        console.log(`Response: ${responseText}`);
+
         if (responseText.length > 2000) {
-            const parts = responseText.match(/[\s\S]{1,1900}(\n|$)/g);
+            const parts = splitText(responseText);
             for (const part of parts) {
                 if (part.trim().length > 0) {
                     await message.channel.sendTyping();
-                    await new Promise(resolve => setTimeout(resolve, 1500));  
-                    await message.channel.send(`>>> ${part}`);
+                    // Optional delay for a more natural feel
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    await message.channel.send(`\`\`\`\n${part}\n\`\`\``);
                 }
             }
         } else {
-            message.reply(`>>> ${responseText}`);
+            message.reply(`\`\`\`\n${responseText}\n\`\`\``);
         }
+
     } catch (error) {
         console.log(`Error: ${error}`);
-        message.reply("The wisdom could not be retrieved. Even sages encounter silence.");
+        message.reply("The wisdom could not be retrieved.");
     }
 });
-
-// 🚀 Ensure embeddings are generated before bot starts
-(async () => {
-    console.log("📜 Ensuring knowledge base is ready...");
-    if (!fs.existsSync("wisdom_embeddings.json")) {
-        console.log("🔄 Generating wisdom embeddings...");
-        await generateEmbeddings(knowledgeBase);
-        fs.writeFileSync("wisdom_embeddings.json", JSON.stringify(embeddings));
-        fs.writeFileSync("wisdom_texts.json", JSON.stringify(knowledgeBase));
-        console.log("✅ Knowledge base successfully indexed!");
-    } else {
-        console.log("✅ Embeddings exist. No need to regenerate.");
-    }
-})();
 
 client.login(process.env.TOKEN);
