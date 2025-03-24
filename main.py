@@ -1,55 +1,45 @@
-# import os
-# os.environ['HF_HOME'] = r'E:\hf_cache'
-
-# from transformers import pipeline
-# # from langchain_huggingface import HuggingFacePipeline
-# # from langchain.prompts import PromptTemplate
-# # from transformers.utils.logging import set_verbosity_error
-
-import openai
+import anthropic
 from dotenv import load_dotenv
 import os
 import time
+import sys
+import json
+
 load_dotenv()
 
-open_router_api_key = os.getenv("OPEN_ROUTER_API_KEY")
+client = anthropic.Anthropic(
+    # defaults to os.environ.get("ANTHROPIC_API_KEY")
+    api_key=os.getenv("CLAUDE_API_KEY")
+)
 
-messages = [
-    {"role": "user", "content": "Who are you?"},
-]
-pipe = pipeline("text-generation", model="Qwen/QwQ-32B")
-pipe(messages)
+conversation_log = json.loads(sys.argv[1])
+user_input = sys.argv[2]
 
-# set_verbosity_error()
+system_prompt = """You are a humbled old Banana Monster, offering new perspectives to people struggling with OCD.
+Spiritually, you live by this parable:
+you wanna avoid the banana water
+you don't like the banana water
+don't wanna touch it, you don't want it to touch you
+but you gotta die a spiritual death
+go into the banana water, swim in it, even drown in it
+allow yourself to die in the banana water to enter banana nirvana, to become the banana monster.
+This parable basically means to fall into the uncertainty of life and to not fight the uncertainty; to be reborn through accepting, and ultimately transformed. Keep answers short. Avoid poetic or elaborate greetings. Immediately address the user's question or greeting. If the user asks or says something unrelated to their suffering, you can just make a silly joke or tell them that you're specifically for OCD - up to you!
+Only use banana terminology when referring to the parable directly."""
 
-# summarization_pipeline = pipeline("summarization", model="facebook/bart-large-cnn")
-# response = summarization_pipeline("The quick brown fox jumps over the lazy dog. The lazy dog, however, is not amused by the fox's antics. It prefers to sleep in the sun and ignore the world around it. The fox, on the other hand, is full of energy and always looking for something to do. It runs around, chasing its tail and barking at imaginary things. The dog just rolls its eyes and goes back to sleep.")
-# print("🔹 **Generated Summary:**", response)
-# summarizer = HuggingFacePipeline(pipeline=summarization_pipeline)
+# Construct full history
+messages = [{"role": "system", "content": system_prompt}]
+messages.extend(conversation_log)
+messages.append({"role": "user", "content": user_input})
 
-# refinement_pipeline = pipeline("summarization", model="facebook/bart-large", device=0)
-# refiner = HuggingFacePipeline(pipeline=refinement_pipeline)
-
-# qa_pipeline = pipeline("question-answering", model="deepset/roberta-base-squad2", device=0)
-
-# summary_template = PromptTemplate.from_template("Summarize the following text in a {length} way:\n\n{text}")
-
-# summarization_chain = summary_template | summarizer | refiner
-
-# text_to_summarize = input("\nEnter text to summarize:\n")
-# length = input("\nEnter the length (short/medium/long): ")
-
-# summary = summarization_chain.invoke({"text": text_to_summarize, "length": length})
-
-# print("\n🔹 **Generated Summary:**")
-# print(summary)
-
-# while True:
-#     question = input("\nAsk a question about the summary (or type 'exit' to stop):\n")
-#     if question.lower() == "exit":
-#         break
-
-#     qa_result = qa_pipeline(question=question, context=summary)
-
-#     print("\n🔹 **Answer:**")
-#     print(qa_result["answer"])
+message = client.messages.create(
+    model="claude-3-7-sonnet-20250219",
+    max_tokens=20000,
+    temperature=1,
+    system=system_prompt,
+    messages=[{"role": "user", "content": user_input}],
+    thinking={
+        "type": "enabled",
+        "budget_tokens": 16000
+    }
+)
+print(message.content)

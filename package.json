@@ -10,7 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.68",
     "bananasage": "file:",
+    "canvas": "^3.1.0",
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.7",
     "faiss-node": "^0.5.1",
