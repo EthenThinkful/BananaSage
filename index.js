@@ -29,6 +29,7 @@ const client = new Client({
     IntentsBitField.Flags.Guilds,
     IntentsBitField.Flags.GuildMessages,
     IntentsBitField.Flags.MessageContent,
+    IntentsBitField.Flags.GuildMembers, // Add this intent for member join events
   ],
 });
 
@@ -45,6 +46,27 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     if (message.channel.id !== process.env.CHANNEL_ID) return;
     if (message.content.startsWith('!')) return;
+
+    const welcomeKey = `welcomed:${message.channel.id}:${message.author.id}`;
+    const alreadyWelcomed = await redisClient.get(welcomeKey);
+
+    if (!alreadyWelcomed) {
+      try {
+        const messageLink = 'https://discord.com/channels/988770359773913098/1124007597209559231/1335268148982579252';
+        await message.channel.send(
+          `Hey ${message.author}, welcome! This is our OCD support bot, inspired by the Banana Water parable: ${messageLink}
+
+          The story reflects common struggles with compulsions and connects to ACT (Acceptance and Commitment Therapy), which many find helpful in managing OCD.
+
+          A member of our server came up with the parable, and we thought it’d be a great foundation for a bot like this. We hope it helps—even just a little. 🙂
+          `
+        );
+        // Mark the user as welcomed (you can also set an expiration if needed)
+        await redisClient.set(welcomeKey, 'true');
+      } catch (error) {
+        console.error(`Error sending welcome message: ${error}`);
+      }
+    }
   
     const userInput = message.content.trim();
     const userId = message.author.id;
