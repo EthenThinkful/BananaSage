@@ -80,9 +80,10 @@ client.on('messageCreate', async (message) => {
       const pyProcess = spawn(PYTHON_CMD, ['main.py', JSON.stringify(conversationLog), userInput]);
   
       let response = '';
-  
       pyProcess.stdout.on('data', (data) => {
-        response += data;
+        const text = data.toString();
+        console.log(`[Python]: ${text}`);
+        response += text;
       });
   
       pyProcess.stderr.on('data', (data) => {
@@ -91,7 +92,7 @@ client.on('messageCreate', async (message) => {
   
       pyProcess.on('close', async (code) => {
         if (code !== 0) {
-          message.reply("Oops! Something went wrong.");
+          message.reply("Omg I just malfunctioned. Can you try again? Sorry about that!");
           return;
         }
   
@@ -100,18 +101,19 @@ client.on('messageCreate', async (message) => {
           return;
         }
   
-        console.log(`Raw response: ${response}`); // Log the raw response
+        // console.log(`Raw response: ${response}`); // Log the raw response
 
         await storeMessage(userId, "user", userInput);
-        await storeMessage(userId, "assistant", response.trim());
 
         try {
           // Extract the text from the TextBlock
+          console.log(`Extracting text from response: ${response}`); // Log the response being processed
           let textMatch = response.match(/TextBlock\(.*?text="(.*?)",.*?\)/);
           if (!textMatch) {
             textMatch = response.match(/TextBlock\(.*?text='(.*?)',.*?\)/);
           }
           const text = textMatch ? textMatch[1] : "No text block found.";
+          await storeMessage(userId, "assistant", text); 
 
           // Format the text for Discord
           const formattedText = text
