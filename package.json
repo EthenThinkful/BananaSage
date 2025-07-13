@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@napi-rs/canvas": "^0.1.68",
+    "anthropic": "^0.0.0",
     "bananasage": "file:",
     "canvas": "^3.1.0",
     "discord.js": "^14.18.0",
@@ -18,7 +19,7 @@
     "faiss-node": "^0.5.1",
     "fs": "^0.0.1-security",
     "node": "^23.9.0",
-    "openai": "^4.86.1",
+    "openai": "^4.104.0",
     "redis": "^4.7.0"
   }
 }
