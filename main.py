@@ -45,6 +45,9 @@ for attempt in range(max_retries):
                 "budget_tokens": 16000
             }
         )
+        print(f"Actual input tokens: {message.usage.input_tokens}")
+        print(f"Output tokens: {message.usage.output_tokens}")
+        print(f"Total tokens: {message.usage.input_tokens + message.usage.output_tokens}")
         print("Post anthropic full response: ", message)
         break  # successful, so exit loop
     except Exception as e:

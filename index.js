@@ -15,7 +15,7 @@ const redisClient = createClient({ url: 'redis://127.0.0.1:6379' });
 redisClient.connect().catch(console.error);
 console.log('redis client connected');
 
-async function storeMessage(userId, role, content, maxMessages = 4) {
+async function storeMessage(userId, role, content, maxMessages = 40) {
     const key = `discord:${userId}:history`;
     await redisClient.rPush(key, JSON.stringify({ role, content }));
     await redisClient.lTrim(key, -maxMessages, -1);
@@ -166,9 +166,9 @@ A member of our server came up with the parable, and we thought it'd be a great 
 
         // Continue with normal processing if content passes moderation
         const conversationLog = await retrieveHistory(userId);
-        console.log(`Chat history for user ${userId}:`, conversationLog);
+        // console.log(`Chat history for user ${userId}:`, conversationLog);
 
-        const pyProcess = spawn(PYTHON_CMD, ['main.py', JSON.stringify(conversationLog), userInput]);   
+        const pyProcess = spawn(PYTHON_CMD, ['main.py', JSON.stringify(conversationLog), userInput, userId]);
 
         let response = '';
         pyProcess.stdout.on('data', (data) => {
@@ -195,7 +195,6 @@ A member of our server came up with the parable, and we thought it'd be a great 
             await storeMessage(userId, "user", userInput);
 
             try {
-                console.log(`Extracting text from response: ${response}`);
                 let textMatch = response.match(/TextBlock\(.*?text="(.*?)",.*?\)/);
                 if (!textMatch) {
                     textMatch = response.match(/TextBlock\(.*?text='(.*?)',.*?\)/);
@@ -203,11 +202,16 @@ A member of our server came up with the parable, and we thought it'd be a great 
                 const text = textMatch ? textMatch[1] : "No text block found.";
                 await storeMessage(userId, "assistant", text);
 
-                // Format the text for Discord
+                // Format the text for Discord - pricey.
                 const formattedText = text
                     .replace(/\\n\\n/g, '\n\n')
                     .replace(/\\n/g, '\n')
                     .replace(/- /g, '\n- ');
+                // Format the text for Discord - pricey.
+                // const formattedText = text
+                //     .replace(/\\n/g, ' ')  
+                //     .replace(/\s+/g, ' ')  
+                //     .trim();
 
                 await message.channel.send(formattedText);
             } catch (error) {
