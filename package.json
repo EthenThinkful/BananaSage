@@ -14,12 +14,15 @@
     "anthropic": "^0.0.0",
     "bananasage": "file:",
     "canvas": "^3.1.0",
+    "crypto": "^1.0.1",
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.7",
+    "express": "^5.1.0",
     "faiss-node": "^0.5.1",
     "fs": "^0.0.1-security",
     "node": "^23.9.0",
     "openai": "^4.104.0",
+    "path": "^0.12.7",
     "redis": "^4.7.0"
   }
 }
